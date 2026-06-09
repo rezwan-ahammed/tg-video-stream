@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { once } = require('events');
-const bigInt = require('big-integer'); // ⚠️ নতুন যুক্ত করা হয়েছে
+const bigInt = require('big-integer');
 
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
@@ -139,9 +139,15 @@ async function persistCurrentSession() {
   return saved;
 }
 
+// ✅ Public (Username) এবং Private (ID) চ্যানেল সাপোর্ট 
 async function resolvePeer(chatId) {
-  // Use BigInt for Telegram IDs to prevent safe integer limits
-  const normalized = BigInt(chatId); 
+  let normalized = chatId;
+  
+  // যদি আইডিটি শুধুই সংখ্যা হয়, তাহলে BigInt এ কনভার্ট করবে
+  // আর যদি ইউজারনেম হয়, তাহলে টেক্সট হিসেবেই রেখে দেবে
+  if (/^-?\d+$/.test(chatId)) {
+    normalized = BigInt(chatId); 
+  }
 
   try {
     return await client.getInputEntity(normalized);
@@ -216,11 +222,11 @@ function waitDrain(res) {
   return new Promise((resolve) => res.once('drain', resolve));
 }
 
-// ⚠️ মূল ফিক্সটি এখানে করা হয়েছে (bigInt ব্যবহার করে)
+// ✅ bigInt offset fix
 async function streamTelegramFile(file, res, { offset = 0, limit = undefined } = {}) {
   const request = {
     file,
-    offset: bigInt(offset), // <--- এখানে bigInt যুক্ত করা হয়েছে
+    offset: bigInt(offset),
     requestSize: 1024 * 1024,
   };
 
