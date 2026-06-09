@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telegram Login - Video Stream</title>
     <style>
-        /* বেসিক রিসেট এবং বডি স্টাইল */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -17,7 +16,6 @@
             padding: 20px;
         }
 
-        /* কন্টেইনার স্টাইল (মোবাইল রেসপন্সিভ) */
         .container { 
             width: 100%; 
             max-width: 400px; 
@@ -30,7 +28,6 @@
         h2 { text-align: center; color: #222; margin-bottom: 20px; font-size: 24px; }
         label { display: block; margin-bottom: 8px; color: #555; font-size: 14px; font-weight: 500; }
         
-        /* ইনপুট ফিল্ড ও বাটন */
         input { 
             width: 100%; 
             padding: 12px 15px; 
@@ -55,12 +52,13 @@
             transition: background-color 0.3s; 
         }
         button:hover { background-color: #0077b3; }
+        
+        .logout-btn { background-color: #dc3545; margin-top: 15px; }
+        .logout-btn:hover { background-color: #c82333; }
 
-        /* স্টেপ ও লোডিং কন্ট্রোল */
-        #step2, #step3, #loading { display: none; }
+        #step2, #step3, #loading, #loggedInView { display: none; }
         #loading { text-align: center; color: #0088cc; font-weight: 600; margin-bottom: 15px; }
         
-        /* মেসেজ নোটিফিকেশন */
         .msg-box { 
             display: none; 
             padding: 10px; 
@@ -79,9 +77,12 @@
     <h2>Telegram Login</h2>
     
     <div id="messageBox" class="msg-box"></div>
-
-    <div id="loading">লোড হচ্ছে, দয়া করে অপেক্ষা করুন...</div>
+    <div id="loading">অপেক্ষা করুন...</div>
     
+    <div id="loggedInView">
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
     <div id="step1">
         <label>আপনার টেলিগ্রাম নম্বর দিন:</label>
         <input type="text" id="phoneNumber" placeholder="যেমন: +88017xxxxxxxx">
@@ -102,11 +103,10 @@
 </div>
 
 <script>
-    const API_URL = window.location.origin + "/api"; // অটোমেটিক লোকাল বা লাইভ লিংক ডিটেক্ট করবে
+    const API_URL = window.location.origin + "/api";
     let phoneCodeHash = "";
     let phoneNumber = "";
 
-    // সুন্দরভাবে মেসেজ দেখানোর ফাংশন
     function showMessage(msg, isError = false) {
         const msgBox = document.getElementById("messageBox");
         msgBox.textContent = msg;
@@ -118,6 +118,30 @@
         document.getElementById("messageBox").style.display = "none";
     }
 
+    // পেজ লোড হলে স্ট্যাটাস চেক
+    window.onload = async () => {
+        document.getElementById("step1").style.display = "none";
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("loading").innerText = "লগইন স্ট্যাটাস চেক করা হচ্ছে...";
+        
+        try {
+            const res = await fetch(`${API_URL}/status`);
+            const data = await res.json();
+            
+            document.getElementById("loading").style.display = "none";
+            
+            if (data.loggedIn) {
+                showMessage(`✅ আপনি লগইন করা আছেন! (${data.name})`);
+                document.getElementById("loggedInView").style.display = "block";
+            } else {
+                document.getElementById("step1").style.display = "block";
+            }
+        } catch (error) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("step1").style.display = "block";
+        }
+    };
+
     async function sendOTP() {
         hideMessage();
         phoneNumber = document.getElementById("phoneNumber").value.trim();
@@ -125,6 +149,7 @@
 
         document.getElementById("step1").style.display = "none";
         document.getElementById("loading").style.display = "block";
+        document.getElementById("loading").innerText = "OTP পাঠানো হচ্ছে...";
 
         try {
             const res = await fetch(`${API_URL}/send-code`, {
@@ -158,6 +183,7 @@
 
         document.getElementById("step2").style.display = "none";
         document.getElementById("loading").style.display = "block";
+        document.getElementById("loading").innerText = "লগইন করা হচ্ছে...";
 
         try {
             const res = await fetch(`${API_URL}/login`, {
@@ -170,9 +196,9 @@
             document.getElementById("loading").style.display = "none";
 
             if (data.success) {
-                showMessage("✅ লগইন সফল হয়েছে! সেশন ডেটাবেসে সেভ করা হয়েছে।");
+                showMessage("✅ লগইন সফল হয়েছে!");
+                document.getElementById("loggedInView").style.display = "block";
             } else if (data.requires2FA) {
-                // 2FA চালু থাকলে Step 3 ওপেন হবে
                 document.getElementById("step3").style.display = "block";
                 showMessage("আপনার অ্যাকাউন্টে 2FA চালু আছে। পাসওয়ার্ড দিন।", true);
             } else {
@@ -193,6 +219,7 @@
 
         document.getElementById("step3").style.display = "none";
         document.getElementById("loading").style.display = "block";
+        document.getElementById("loading").innerText = "যাচাই করা হচ্ছে...";
 
         try {
             const res = await fetch(`${API_URL}/submit-password`, {
@@ -206,6 +233,7 @@
 
             if (data.success) {
                 showMessage("✅ 2FA ভেরিফাই এবং লগইন সফল হয়েছে!");
+                document.getElementById("loggedInView").style.display = "block";
             } else {
                 showMessage(data.error, true);
                 document.getElementById("step3").style.display = "block";
@@ -214,6 +242,34 @@
             document.getElementById("loading").style.display = "none";
             document.getElementById("step3").style.display = "block";
             showMessage("পাসওয়ার্ড যাচাই করতে সমস্যা হয়েছে!", true);
+        }
+    }
+
+    async function logout() {
+        hideMessage();
+        document.getElementById("loggedInView").style.display = "none";
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("loading").innerText = "লগআউট করা হচ্ছে...";
+
+        try {
+            const res = await fetch(`${API_URL}/logout`, {
+                method: "POST"
+            });
+            const data = await res.json();
+
+            document.getElementById("loading").style.display = "none";
+
+            if (data.success) {
+                showMessage("✅ সফলভাবে লগআউট করা হয়েছে।", false);
+                document.getElementById("step1").style.display = "block";
+            } else {
+                showMessage("লগআউট করতে সমস্যা হয়েছে!", true);
+                document.getElementById("loggedInView").style.display = "block";
+            }
+        } catch (error) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("loggedInView").style.display = "block";
+            showMessage("সার্ভারের সাথে কানেকশনে সমস্যা হয়েছে!", true);
         }
     }
 </script>

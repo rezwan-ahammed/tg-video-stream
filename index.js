@@ -36,7 +36,7 @@ const db = getDatabase();
 let client;
 let sessionString = new StringSession('');
 
-// ✅ Startup Validation & Client Initialization
+// Startup Validation & Client Initialization
 async function initTelegram() {
     try {
         const snapshot = await db.ref('telegramAuth/sessionString').once('value');
@@ -52,7 +52,7 @@ async function initTelegram() {
         
         if (savedSession) {
             try {
-                await client.getMe(); // সেশন ভ্যালিডিটি চেক
+                await client.getMe(); 
                 console.log("✅ Firebase থেকে সেশন লোড করে টেলিগ্রামে কানেক্ট হয়েছে!");
             } catch (err) {
                 console.log("⚠️ সেশন এক্সপায়ার বা ইনভ্যালিড হয়ে গেছে। নতুন করে লগইন করুন।");
@@ -66,10 +66,10 @@ async function initTelegram() {
     }
 }
 
-// ১. ফোন নম্বর দিয়ে OTP পাঠানো
+// ফোন নম্বর দিয়ে OTP পাঠানো
 app.post('/api/send-code', async (req, res) => {
     try {
-        if (!client.connected) await client.connect(); // ✅ Connection Validation
+        if (!client.connected) await client.connect(); 
         const { phoneNumber } = req.body;
         const result = await client.sendCode({ apiId, apiHash }, phoneNumber);
         res.json({ success: true, phoneCodeHash: result.phoneCodeHash });
@@ -78,7 +78,7 @@ app.post('/api/send-code', async (req, res) => {
     }
 });
 
-// ২. OTP দিয়ে লগইন করা
+// OTP দিয়ে লগইন করা
 app.post('/api/login', async (req, res) => {
     try {
         if (!client.connected) await client.connect();
@@ -97,7 +97,6 @@ app.post('/api/login', async (req, res) => {
 
         res.json({ success: true, message: "লগইন সফল এবং সেশন সেভ হয়েছে!" });
     } catch (error) {
-        // ✅ 2FA (Two-Step Verification) Handling
         if (error.message.includes("SESSION_PASSWORD_NEEDED")) {
             return res.json({ success: false, requires2FA: true, message: "2FA পাসওয়ার্ড প্রয়োজন!" });
         }
@@ -105,7 +104,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ২.১. 2FA পাসওয়ার্ড সাবমিট করা
+// 2FA পাসওয়ার্ড সাবমিট করা
 app.post('/api/submit-password', async (req, res) => {
     try {
         if (!client.connected) await client.connect();
@@ -126,14 +125,14 @@ app.post('/api/submit-password', async (req, res) => {
     }
 });
 
-// ৩. লগআউট করা
+// লগআউট করা
 app.post('/api/logout', async (req, res) => {
     try {
         if (!client.connected) await client.connect();
         await client.invoke(new Api.auth.LogOut());
         await db.ref('telegramAuth/sessionString').remove();
 
-        // ✅ Proper Logout Reset
+        // Proper Logout Reset
         await client.disconnect();
         sessionString = new StringSession('');
         client = new TelegramClient(sessionString, apiId, apiHash, { connectionRetries: 5 });
@@ -145,7 +144,22 @@ app.post('/api/logout', async (req, res) => {
     }
 });
 
-// ৪. ভিডিও স্ট্রিমিং এন্ডপয়েন্ট (ExoPlayer এর জন্য Range Request Support)
+// লগইন স্ট্যাটাস চেক করা
+app.get('/api/status', async (req, res) => {
+    try {
+        if (client && client.connected) {
+            const me = await client.getMe();
+            if (me) {
+                return res.json({ loggedIn: true, name: me.firstName });
+            }
+        }
+        res.json({ loggedIn: false });
+    } catch (error) {
+        res.json({ loggedIn: false });
+    }
+});
+
+// ভিডিও স্ট্রিমিং এন্ডপয়েন্ট
 app.get('/stream/:chatId/:messageId', async (req, res) => {
     try {
         if (!client.connected) await client.connect();
@@ -160,7 +174,6 @@ app.get('/stream/:chatId/:messageId', async (req, res) => {
             return res.status(404).send("ভিডিও পাওয়া যায়নি");
         }
 
-        // ✅ Range Request Implementation
         const fileSize = Number(message.media.document.size);
         const range = req.headers.range;
 
@@ -181,7 +194,7 @@ app.get('/stream/:chatId/:messageId', async (req, res) => {
                 file: message.media,
                 offset: start,
                 limit: chunkSize,
-                requestSize: 1024 * 1024 // 1MB করে চাঙ্ক টানবে
+                requestSize: 1024 * 1024 
             })) {
                 res.write(chunk);
             }
