@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Video Player</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #1e1e2f; 
+            color: white;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            padding: 20px;
+        }
+
+        .container { 
+            width: 100%; 
+            max-width: 600px; 
+            background: #2a2a40; 
+            padding: 30px 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3); 
+        }
+
+        h2 { text-align: center; color: #0088cc; margin-bottom: 20px; font-size: 24px; }
+        label { display: block; margin-bottom: 10px; color: #ccc; font-size: 14px; }
+        
+        input { 
+            width: 100%; 
+            padding: 14px; 
+            margin-bottom: 15px; 
+            background: #1e1e2f;
+            color: white;
+            border: 1px solid #444; 
+            border-radius: 8px; 
+            font-size: 16px; 
+        }
+        input:focus { outline: none; border-color: #0088cc; }
+        
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            background-color: #0088cc; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 600;
+            transition: 0.3s; 
+        }
+        button:hover { background-color: #0077b3; }
+
+        .msg-error { 
+            display: none; 
+            background-color: #ff4d4d; 
+            color: white; 
+            padding: 10px; 
+            border-radius: 6px; 
+            text-align: center; 
+            margin-bottom: 15px; 
+        }
+
+        .video-container { 
+            display: none; 
+            margin-top: 25px; 
+            width: 100%; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            background: #000;
+        }
+        video { width: 100%; outline: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Smart Video Player</h2>
+    
+    <label>টেলিগ্রাম ভিডিওর লিংক পেস্ট করুন:</label>
+    <input type="text" id="tgLink" placeholder="যেমন: https://t.me/c/123456789/55">
+    
+    <div id="errorMsg" class="msg-error"></div>
+    
+    <button onclick="processAndPlay()">Play Video</button>
+
+    <div class="video-container" id="videoWrapper">
+        <video id="videoPlayer" controls autoplay>
+            আপনার ব্রাউজার ভিডিও সাপোর্ট করছে না।
+        </video>
+    </div>
+</div>
+
+<script>
+    function processAndPlay() {
+        const link = document.getElementById('tgLink').value.trim();
+        const errorMsg = document.getElementById('errorMsg');
+        const videoWrapper = document.getElementById('videoWrapper');
+        const videoPlayer = document.getElementById('videoPlayer');
+
+        errorMsg.style.display = 'none';
+        videoWrapper.style.display = 'none';
+        videoPlayer.pause();
+
+        if (!link) {
+            showError("দয়া করে একটি লিংক দিন!");
+            return;
+        }
+
+        try {
+            const url = new URL(link);
+            const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+
+            let chatId, messageId;
+
+            if (pathParts[0] === 'c') {
+                chatId = "-100" + pathParts[1];
+                messageId = pathParts[2];
+            } else {
+                chatId = pathParts[0];
+                messageId = pathParts[1];
+            }
+
+            if (!chatId || !messageId || isNaN(messageId)) {
+                throw new Error("Invalid link format");
+            }
+
+            // যেহেতু এটি Render-এ হোস্ট হবে, তাই origin ব্যবহার করলেই হবে
+            const API_URL = window.location.origin;
+            const streamUrl = `${API_URL}/stream/${chatId}/${messageId}`;
+
+            videoPlayer.src = streamUrl;
+            videoWrapper.style.display = 'block';
+
+        } catch (error) {
+            showError("সঠিক টেলিগ্রাম লিংক দিন! (উদাঃ https://t.me/...)");
+        }
+    }
+
+    function showError(msg) {
+        const errorMsg = document.getElementById('errorMsg');
+        errorMsg.innerText = msg;
+        errorMsg.style.display = 'block';
+    }
+
+    document.getElementById('videoPlayer').onerror = function() {
+        showError("ভিডিওটি লোড করা যাচ্ছে না! লিংকটিতে আসলেই কোনো ভিডিও আছে কি না চেক করুন।");
+        document.getElementById('videoWrapper').style.display = 'none';
+    };
+</script>
+
+</body>
+</html>
