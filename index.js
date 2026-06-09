@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { once } = require('events');
+const bigInt = require('big-integer'); // ⚠️ নতুন যুক্ত করা হয়েছে
 
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
@@ -138,7 +139,6 @@ async function persistCurrentSession() {
   return saved;
 }
 
-// Entity cache resolution (id parsing fixed for Telegram channel ids)
 async function resolvePeer(chatId) {
   // Use BigInt for Telegram IDs to prevent safe integer limits
   const normalized = BigInt(chatId); 
@@ -216,10 +216,11 @@ function waitDrain(res) {
   return new Promise((resolve) => res.once('drain', resolve));
 }
 
+// ⚠️ মূল ফিক্সটি এখানে করা হয়েছে (bigInt ব্যবহার করে)
 async function streamTelegramFile(file, res, { offset = 0, limit = undefined } = {}) {
   const request = {
     file,
-    offset,
+    offset: bigInt(offset), // <--- এখানে bigInt যুক্ত করা হয়েছে
     requestSize: 1024 * 1024,
   };
 
@@ -240,17 +241,14 @@ async function streamTelegramFile(file, res, { offset = 0, limit = undefined } =
 
 // --- API Routes --- //
 
-// Home page (লগইন পেজ)
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/login.html');
 });
 
-// Player page (স্মার্ট ভিডিও প্লেয়ার পেজ)
 app.get('/player', (req, res) => {
   res.sendFile(__dirname + '/player.html');
 });
 
-// Health check
 app.get('/health', async (req, res) => {
   try {
     const me = await ensureAuthorized();
@@ -269,7 +267,6 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Send OTP
 app.post('/api/send-code', async (req, res) => {
   try {
     await ensureClient();
@@ -296,7 +293,6 @@ app.post('/api/send-code', async (req, res) => {
   }
 });
 
-// Login with OTP
 app.post('/api/login', async (req, res) => {
   try {
     await ensureClient();
@@ -358,7 +354,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Submit 2FA password
 app.post('/api/submit-password', async (req, res) => {
   try {
     await ensureClient();
@@ -398,7 +393,6 @@ app.post('/api/submit-password', async (req, res) => {
   }
 });
 
-// Logout
 app.post('/api/logout', async (req, res) => {
   try {
     await ensureClient();
@@ -422,7 +416,6 @@ app.post('/api/logout', async (req, res) => {
   }
 });
 
-// Login status
 app.get('/api/status', async (req, res) => {
   try {
     const me = await ensureAuthorized();
@@ -441,7 +434,6 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
-// Video streaming
 app.get('/stream/:chatId/:messageId', async (req, res) => {
   try {
     const me = await ensureAuthorized();
